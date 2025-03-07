@@ -1,12 +1,16 @@
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
+import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader'
 
 export default class ModelWithPoints {
-  constructor({ url, scene, meshes }) {
+  constructor({ url, scene, meshes, position = new THREE.Vector3(0, 0, 0), scale = new THREE.Vector3(1, 1, 1) }) {
     this.url = url
     this.scene = scene
     this.meshes = meshes
-    this.loader = new GLTFLoader()
+    this.position = position
+    this.scale = scale
+    this.gltfLoader = new GLTFLoader()
+    this.fbxLoader = new FBXLoader()
     this.model = null
     this.pointsGroup = null
     this.originalPositions = []  // Store original vertex positions
@@ -17,17 +21,36 @@ export default class ModelWithPoints {
     this.mouseRadius = 0.2         // How far the mouse effect reaches
   }
 
+  setPosition(x, y, z) {
+    this.position.set(x, y, z)
+    if (this.model) this.model.position.set(x, y, z)
+    if (this.pointsGroup) this.pointsGroup.position.set(x, y, z)
+  }
+
+  setScale(x, y, z) {
+    this.scale.set(x, y, z)
+    if (this.model) this.model.scale.set(x, y, z)
+    if (this.pointsGroup) this.pointsGroup.scale.set(x, y, z)
+  }
+
   async load() {
     return new Promise((resolve, reject) => {
-      this.loader.load(
+      const fileExtension = this.url.split('.').pop().toLowerCase()
+      const loader = fileExtension === 'fbx' ? this.fbxLoader : this.gltfLoader
+
+      loader.load(
         this.url,
-        (gltf) => {
-          this.model = gltf.scene
+        (result) => {
+          this.model = fileExtension === 'fbx' ? result : result.scene
+
+          // Apply initial position and scale
+          this.model.position.copy(this.position)
+          this.model.scale.copy(this.scale)
 
           // Create points representation
           this.pointsGroup = new THREE.Group()
-          this.pointsGroup.scale.copy(this.model.scale)
-          this.pointsGroup.position.copy(this.model.position)
+          this.pointsGroup.position.copy(this.position)
+          this.pointsGroup.scale.copy(this.scale)
           this.pointsGroup.rotation.copy(this.model.rotation)
 
           // Fix the rotation - rotate 90 degrees on X axis
@@ -155,6 +178,67 @@ export default class ModelWithPoints {
           const influence = Math.max(0, 1 - (distanceToMouse / this.mouseRadius))
           
           // Apply mouse-based warping
+          positions[i] = positions[i] + 
+            (this.mousePosition.x * influence * this.mouseInfluence)
+          positions[i + 1] = positions[i + 1] + 
+            (this.mousePosition.y * influence * this.mouseInfluence)
+          positions[i + 2] = positions[i + 2] + 
+            (Math.sin(distanceToMouse * 10) * influence * this.mouseInfluence)
+        }
+
+        child.geometry.attributes.position.needsUpdate = true
+        vertexIndex++
+      }
+    })
+  }
+
+  animateMesh(time) {
+    if (!this.model || !this.model.visible) return
+
+    let vertexIndex = 0
+    this.model.traverse((child) => {
+      if (child.isMesh) {
+        const positions = child.geometry.attributes.position.array
+        const originalPositions = this.originalPositions[vertexIndex].positions
+
+        for (let i = 0; i < positions.length; i += 3) {
+          // Create a unique offset for each vertex based on its index and time
+          const offset = (i + time) * this.animationSpeed
+          
+          // Use sine waves with different frequencies for each axis
+          positions[i] = originalPositions[i] + 
+            Math.sin(offset) * this.animationAmplitude
+          positions[i + 1] = originalPositions[i + 1] + 
+            Math.sin(offset * 1.1) * this.animationAmplitude
+          positions[i + 2] = originalPositions[i + 2] + 
+            Math.sin(offset * 1.2) * this.animationAmplitude
+        }
+
+        child.geometry.attributes.position.needsUpdate = true
+        vertexIndex++
+      }
+    })
+  }
+
+  // Add a method to warp the mesh with mouse too
+  mouseMeshWarp() {
+    if (!this.model || !this.model.visible) return
+
+    let vertexIndex = 0
+    this.model.traverse((child) => {
+      if (child.isMesh) {
+        const positions = child.geometry.attributes.position.array
+        const originalPositions = this.originalPositions[vertexIndex].positions
+
+        for (let i = 0; i < positions.length; i += 3) {
+          const vertexPosition = new THREE.Vector2(
+            originalPositions[i],
+            originalPositions[i + 1]
+          )
+          
+          const distanceToMouse = vertexPosition.distanceTo(this.mousePosition)
+          const influence = Math.max(0, 1 - (distanceToMouse / this.mouseRadius))
+          
           positions[i] = positions[i] + 
             (this.mousePosition.x * influence * this.mouseInfluence)
           positions[i + 1] = positions[i + 1] + 

@@ -6,8 +6,9 @@ import { addBoilerPlateMeshes, addStandardMesh } from './addDefaultMeshes'
 import { addLight } from './addDefaultLights'
 import Model from './Model'
 import ModelWithPoints from './ModelWithPoints'
+import { addGussianSplat } from './addGussianSplat'
 
-const renderer = new THREE.WebGLRenderer({ antialias: true })
+const renderer = new THREE.WebGLRenderer({ antialias: false })
 const camera = new THREE.PerspectiveCamera(
   75,
   window.innerWidth / window.innerHeight,
@@ -29,21 +30,20 @@ const normalizedMouse = new THREE.Vector2()
 init()
 
 async function loadModels() {
-  try {
+
     const sofaModel = new ModelWithPoints({
-      url: 'sofa.glb',
+      url: '/sofa.glb',
       scene: scene,
-      meshes: meshes
+      meshes: meshes,
+      position: new THREE.Vector3(0, 0, 0),
+      scale: new THREE.Vector3(2, 2, 2)
     })
     await sofaModel.load()
     meshes.sofa = sofaModel  // Store reference to the loaded model
     
-    // Initially show the regular model
+    // // Initially show the regular model
     sofaModel.setPointsVisible(false)
-    sofaModel.setModelVisible(true)
-  } catch (error) {
-    console.error('Error loading model:', error)
-  }
+    sofaModel.setModelVisible(true)   
 }
 
 // Add click event listener
@@ -86,13 +86,16 @@ function init() {
   renderer.setSize(window.innerWidth, window.innerHeight)
   document.body.appendChild(renderer.domElement)
 
+  meshes.splat = addGussianSplat('https://lumalabs.ai/capture/4da7cf32-865a-4515-8cb9-9dfc574c90c2')
   meshes.default = addBoilerPlateMeshes()
   meshes.standard = addStandardMesh()
   lights.default = addLight()
 
   scene.add(lights.default)
   scene.add(meshes.default)
-
+  if (meshes.splat) {
+    scene.add(meshes.splat)
+  }
   camera.position.set(0, 0, 5)
 
   setupMouseHandler()
@@ -113,15 +116,16 @@ function resize() {
 function animate() {
   requestAnimationFrame(animate)
   
-  meshes.default.rotation.x += 0.01
-  meshes.standard.rotation.y += 0.01
-  meshes.standard.rotation.z -= 0.01
+  // meshes.default.rotation.x += 0.01
+  // meshes.standard.rotation.y += 0.01
+  // meshes.standard.rotation.z -= 0.01
 
-  // Call both animations independently
-  if (meshes.sofa) {
-    // meshes.sofa.animatePoints(performance.now() * 1)
-    meshes.sofa.mouseWarp()
-  }
+  // // Call both animations independently
+  // if (meshes.sofa) {
+  //  // meshes.sofa.animatePoints(performance.now() * 11)
+  //    meshes.sofa.mouseWarp()
+  //    meshes.sofa.animateMesh(performance.now() * 1)
+  // }
 
   renderer.render(scene, camera)
 }
