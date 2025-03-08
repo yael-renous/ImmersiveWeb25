@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@lumaai/luma-web": "^0.2.2",
+    "dat.gui": "^0.7.9",
     "gsap": "^3.12.7",
     "three": "^0.173.0",
     "three-story-controls": "^1.0.6"
