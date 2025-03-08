@@ -41,26 +41,30 @@ const splatsURL = [
   'https://lumalabs.ai/capture/4da7cf32-865a-4515-8cb9-9dfc574c90c2'
 ]
 
-const wheel = new WheelAdaptor(camera, renderer.domElement)
-wheel.connect()
-wheel.addEventListener('trigger', () => {
-	//increment our counter each time we scroll
-	currentSplatIndex = (currentSplatIndex + 1) % splatsURL.length
-	//check if our meshes.flower exists
-	switchSplat(1)
-	// if (currentSlide < slides.length - 1) {
-	// 	currentSlide++
-	// } else {
-	// 	currentSlide = 0
-	// }
-	// gsap.to(camera.position, {
-	// 	y: currentSlide * -10,
-	// 	duration: 2,
-	// 	ease: 'back.inOut',
-	// })
-})
+const wheel = new WheelAdaptor({ type: 'discrete' })
+
 
 init()
+
+
+function scrollHandler() {
+  wheel.connect()
+  wheel.addEventListener('trigger', (event) => {
+    if (event.y === 1) {
+      console.log('Scrolling Down');
+      switchSplat(1)
+    } else if (event.y === -1) {
+      console.log('Scrolling Up');
+      switchSplat(-1)
+    }
+
+    // if (event.x === 1) {
+    //   console.log('Scrolling Right');
+    // } else if (event.x === -1) {
+    //   console.log('Scrolling Left');
+    // }
+  })
+}
 
 async function loadModels() {
 
@@ -109,12 +113,12 @@ async function switchSplat(direction) {
 
   isLoadingSplat = true
 
-  // // Calculate new index
-  // if (direction > 0) {
-  //   currentSplatIndex = (currentSplatIndex + 1) % splatsURL.length
-  // } else {
-  //   currentSplatIndex = (currentSplatIndex - 1 + splatsURL.length) % splatsURL.length
-  // }
+  // Calculate new index
+  if (direction > 0) {
+    currentSplatIndex = (currentSplatIndex + 1) % splatsURL.length
+  } else {
+    currentSplatIndex = (currentSplatIndex - 1 + splatsURL.length) % splatsURL.length
+  }
 
 
   // Remove existing splat if it exists
@@ -147,9 +151,9 @@ function init() {
 
   scene.add(lights.default)
   scene.add(meshes.default)
-  if (meshes.splat) {
-    scene.add(meshes.splat)
-  }
+  // if (meshes.splat) {
+  //   scene.add(meshes.splat)
+  // }
   camera.position.set(0, 0, 5)
 
 
@@ -157,7 +161,7 @@ function init() {
   loadModels()
   resize()
   animate()
-
+  scrollHandler()
 
   // Load initial splat
   switchSplat(1)
