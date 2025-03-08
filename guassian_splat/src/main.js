@@ -30,7 +30,7 @@ const lights = {}
 const scene = new THREE.Scene()
 
 const controls = new OrbitControls(camera, renderer.domElement)
-controls.autoRotate = true
+// controls.autoRotate = true
 init()
 
 function init() {
@@ -39,28 +39,29 @@ function init() {
 	// meshes.physical = addTexturedMesh()
 
 	meshes.splat = new LumaSplatsThree({
-		// source: 'https://lumalabs.ai/capture/ca9ea966-ca24-4ec1-ab0f-af665cb546ff',
-		source: 'https://lumalabs.ai/capture/4da7cf32-865a-4515-8cb9-9dfc574c90c2',
+		// source: 'https://lumalabs.ai/capture/e8c4d292-4765-4a0f-b729-4ca3ce29c5d2',
+		// source: 'https://lumalabs.ai/capture/4da7cf32-865a-4515-8cb9-9dfc574c90c2',
+		source: 'https://lumalabs.ai/capture/90449613-d135-49db-92c9-20e70c2b9672',
 		// controls the particle entrance animation
 		// particleRevealEnabled: true,
 		loadingAnimationEnabled: false,
 	})
-	// meshes.splat.onLoad = () => {
-	// 	meshes.splat.captureCubemap(renderer).then((capturedTexture) => {
-	// 		gsap.to('.loader', {
-	// 			opacity: 0,
-	// 			duration: 1.5,
-	// 			ease: 'power3.inOut',
-	// 			onComplete: () =>
-	// 				gsap.to('.loader', {
-	// 					zIndex: -3,
-	// 				}),
-	// 		})
-	// 		scene.environment = capturedTexture
-	// 		scene.background = capturedTexture
-	// 		scene.backgroundBlurriness = 0.5
-	// 	})
-	// }
+	meshes.splat.onLoad = () => {
+		meshes.splat.captureCubemap(renderer).then((capturedTexture) => {
+			gsap.to('.loader', {
+				opacity: 0,
+				duration: 1.5,
+				ease: 'power3.inOut',
+				onComplete: () =>
+					gsap.to('.loader', {
+						zIndex: -3,
+					}),
+			})
+			scene.environment = capturedTexture
+			scene.background = capturedTexture
+			scene.backgroundBlurriness = 0.5
+		})
+	}
 	meshes.default = addBoilerPlateMeshes()
 	meshes.standard = addStandardMesh()
 	// lights.default = addLight()
@@ -68,7 +69,7 @@ function init() {
 	// scene.add(lights.default)
 	scene.add(meshes.default)
 	scene.add(meshes.standard)
-	scene.add(meshes.physical)
+	// scene.add(meshes.physical)
 	scene.add(meshes.splat)
 
 	// meshes.physical.position.set(-2, 2, 0)
@@ -87,7 +88,17 @@ function instances() {
 		position: new THREE.Vector3(-2.5, 1, 1),
 		rotation: new THREE.Vector3(0, -Math.PI / 4, 0),
 	})
-	car.init()
+	// car.init()
+
+	const sofa = new Model({
+		name: 'sofa',
+		scene: scene,
+		meshes: meshes,
+		url: 'sofa.glb',
+		scale: new THREE.Vector3(1	, 1, 1),
+		position: new THREE.Vector3(0, -2, 0),
+	})
+	sofa.init()
 }
 function resize() {
 	window.addEventListener('resize', () => {
