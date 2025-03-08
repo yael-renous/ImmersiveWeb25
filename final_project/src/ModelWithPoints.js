@@ -47,6 +47,40 @@ export default class ModelWithPoints {
           this.model.position.copy(this.position)
           this.model.scale.copy(this.scale)
 
+
+          this.model.traverse((child) => {
+            if (child.isMesh) {
+              console.log(`Mesh name: ${child.name}`)
+              console.log('Material:', child.material)
+              
+              // Check if material is MeshBasicMaterial
+              if (child.material.type === 'MeshBasicMaterial') {
+                // Create new MeshStandardMaterial and copy relevant properties
+                const standardMaterial = new THREE.MeshStandardMaterial({
+                  color: child.material.color,
+                  map: child.material.map,
+                  transparent: child.material.transparent,
+                  opacity: child.material.opacity,
+                  // side: child.material.side,
+                  
+                  // Brightness related parameters:
+                  emissive: new THREE.Color(0x006666), // Deep blue-green/teal color
+                  emissiveIntensity: 0, // Controls how strong the emission is (0-1)
+                  
+                  // Surface properties:
+                  roughness: 0, // Lower values = more shiny/glossy (0-1)
+                  metalness: 0, // Lower values = more like plastic, higher = more metallic (0-1)
+                  
+                  // Other useful parameters:
+                  // envMapIntensity: 1.0, // How much environment lighting affects the material
+                  flatShading: false, // true for faceted look
+                  // wireframe: true, // true for wireframe view
+                });
+                child.material = standardMaterial;
+              }
+            }
+          })
+          
           // Create points representation
           this.pointsGroup = new THREE.Group()
           this.pointsGroup.position.copy(this.position)

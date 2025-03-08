@@ -27,7 +27,7 @@ export const scenes = [
     },
     {
         id: 'scene3',
-        splatUrl: 'https://lumalabs.ai/capture/90449613-d135-49db-92c9-20e70c2b9672',
+        splatUrl: 'https://lumalabs.ai/capture/2b2112cd-9aa0-44f3-88b3-fde365066a3b',
         camera: {
             position: { x: 0, y: 0, z: 0 },
             rotation: { x: 0, y: 0, z: 0 }

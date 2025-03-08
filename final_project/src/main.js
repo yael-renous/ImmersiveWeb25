@@ -417,6 +417,7 @@ function resize() {
 
 function animate() {
   requestAnimationFrame(animate)
+  controls.update()
 
   // meshes.default.rotation.x += 0.01
   // meshes.standard.rotation.y += 0.01
