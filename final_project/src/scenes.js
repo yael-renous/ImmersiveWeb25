@@ -1,3 +1,5 @@
+import * as THREE from 'three';
+
 export const scenes = [
     {
         id: 'scene1',
@@ -29,15 +31,14 @@ export const scenes = [
         id: 'scene3',
         splatUrl: 'https://lumalabs.ai/capture/2b2112cd-9aa0-44f3-88b3-fde365066a3b',
         camera: {
-            position: { x: 0, y: 0, z: 0 },
-            rotation: { x: 0, y: 0, z: 0 }
-          },
-          sofa: {
-            position: { x: 0, y: 0, z: 0 },
-            rotation: { x: 0, y: 0, z: 0 },
-            scale: { x: 1, y: 1, z: 1 }
-          }
-    },
-
+            position: { x: -2.252, y: 0.471, z: -5.4 },
+            rotation: { x: -2.952, y: -0.243, z: -3.096 }
+        },
+        sofa: {
+            position: { x: -2.632, y: -1.529, z: 0.456 },
+            rotation: { x: -0.688, y: 2.568, z: -0.134 },
+            scale: { x: 2.608, y: 2.608, z: 2.608 }
+        }
+    }
 ]
 

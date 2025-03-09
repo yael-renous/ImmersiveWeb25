@@ -44,18 +44,9 @@ const loadedSplats = [] // Array to store all loaded splats
 //   'https://lumalabs.ai/capture/057109e3-79e1-411a-ab84-016cbd417d36',
 //   'https://lumalabs.ai/capture/4da7cf32-865a-4515-8cb9-9dfc574c90c2'
 // ]
-
+let sofaModel;
 const wheel = new WheelAdaptor({ type: 'discrete' })
 
-// Add at the top with other declarations
-const transitionPlane = new THREE.Mesh(
-  new THREE.PlaneGeometry(100, 100),
-  new THREE.MeshBasicMaterial({
-    color: 0x000000,
-    transparent: true,
-    opacity: 0
-  })
-)
 
 // Add near your other declarations
 let gui
@@ -216,6 +207,9 @@ function switchScene(direction) {
       scene.backgroundBlurriness = 0.5;
     })
   }
+  console.log(meshes.sofa)
+  //change sofa material
+
 }
 
 function switchToScene(newScene) {
@@ -239,9 +233,9 @@ function switchToScene(newScene) {
   })
 
   // Animate sofa if it exists
-  // console.log(meshes.sofa)
+  console.log(meshes.sofa)
   if (meshes.sofa) {
-    gsap.to(meshes.sofa.model.position, {
+    gsap.to(meshes.sofa.position, {
       x: newScene.sofa.position.x,
       y: newScene.sofa.position.y,
       z: newScene.sofa.position.z,
@@ -249,7 +243,7 @@ function switchToScene(newScene) {
       ease: "power2.inOut"
     })
 
-    gsap.to(meshes.sofa.model.scale, {
+    gsap.to(meshes.sofa.scale, {
       x: newScene.sofa.scale.x,
       y: newScene.sofa.scale.y,
       z: newScene.sofa.scale.z,
@@ -257,7 +251,7 @@ function switchToScene(newScene) {
       ease: "power2.inOut"
     })
 
-    gsap.to(meshes.sofa.model.rotation, {
+    gsap.to(meshes.sofa.rotation, {
       x: newScene.sofa.rotation.x,
       y: newScene.sofa.rotation.y,
       z: newScene.sofa.rotation.z,
@@ -281,22 +275,36 @@ function scrollHandler() {
   })
 }
 
+
+
 async function loadModels() {
 
-  const sofaModel = new ModelWithPoints({
+  // const sofaModel = new ModelWithPoints({
+  //   url: '/sofa.glb',
+  //   scene: scene,
+  //   meshes: meshes,
+  //   position: new THREE.Vector3(0, 0, 0),
+  //   scale: new THREE.Vector3(2, 2, 2)
+  // })
+  // await sofaModel.load()
+  // meshes.sofa = sofaModel  // Store reference to the loaded model
+
+   sofaModel = new Model({
     url: '/sofa.glb',
+    name: 'sofa',
     scene: scene,
     meshes: meshes,
     position: new THREE.Vector3(0, 0, 0),
     scale: new THREE.Vector3(2, 2, 2)
   })
-  await sofaModel.load()
-  meshes.sofa = sofaModel  // Store reference to the loaded model
+  sofaModel.init()
+ 
+  console.log(sofaModel)
   setupDebugGUI()
   switchToScene(scenes[0])
   // // Initially show the regular model
-  sofaModel.setPointsVisible(false)
-  sofaModel.setModelVisible(true)
+  // sofaModel.setPointsVisible(false)
+  // sofaModel.setModelVisible(true)
 }
 
 // Add click event listener
@@ -311,12 +319,19 @@ function setupClickHandler() {
 
     if (meshes.sofa) {
       // Check for intersections with both model and points
-      const intersectsModel = raycaster.intersectObject(meshes.sofa.model, true)
-      const intersectsPoints = raycaster.intersectObject(meshes.sofa.pointsGroup, true)
+      const intersectsModel = raycaster.intersectObject(meshes.sofa, true)
+      // const intersectsPoints = raycaster.intersectObject(meshes.sofa.pointsGroup, true)
 
       // If we clicked either representation, toggle
-      if (intersectsModel.length > 0 || intersectsPoints.length > 0) {
+      if (intersectsModel.length > 0 ) {
         // meshes.sofa.toggleRepresentation()
+        // sofaModel.updateMaterial(new THREE.MeshPhysicalMaterial({
+        //   color: '#ff6b6b',
+        //   metalness: 1,
+        //   roughness: 0.2,
+        //   clearcoat: 1.0,
+        //   clearcoatRoughness: 0.1,
+        // }))
       }
     }
   })
@@ -343,41 +358,6 @@ async function preloadSplats() {
   console.log('All splats preloaded!')
 }
 
-function setSceneParameters(sceneIndex) {
-  const targetScene = scenes[sceneIndex]
-
-  // Set camera parameters
-  camera.position.set(
-    targetScene.camera.position.x,
-    targetScene.camera.position.y,
-    targetScene.camera.position.z
-  )
-  camera.rotation.set(
-    targetScene.camera.rotation.x,
-    targetScene.camera.rotation.y,
-    targetScene.camera.rotation.z
-  )
-
-  // Set sofa parameters if it exists
-  if (meshes.sofa && meshes.sofa.model) {
-    meshes.sofa.model.position.set(
-      targetScene.sofa.position.x,
-      targetScene.sofa.position.y,
-      targetScene.sofa.position.z
-    )
-    meshes.sofa.model.rotation.set(
-      targetScene.sofa.rotation.x,
-      targetScene.sofa.rotation.y,
-      targetScene.sofa.rotation.z
-    )
-    meshes.sofa.model.scale.set(
-      targetScene.sofa.scale.x,
-      targetScene.sofa.scale.x,  // Using x for uniform scale
-      targetScene.sofa.scale.x
-    )
-  }
-}
-
 function init() {
   renderer.setSize(window.innerWidth, window.innerHeight)
   document.body.appendChild(renderer.domElement)
@@ -401,10 +381,6 @@ function init() {
   // Preload all splats before starting
   preloadSplats()
 
-
-  // Load initial splat
-  
-  // setupDebugGUI()
 }
 
 function resize() {
