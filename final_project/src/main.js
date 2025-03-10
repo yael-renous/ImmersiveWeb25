@@ -4,13 +4,12 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 import { addBoilerPlateMeshes, addStandardMesh } from './addDefaultMeshes'
 import { addLight } from './addDefaultLights'
-import Model from './Model'
-import ModelWithPoints from './ModelWithPoints'
 import { addGussianSplat } from './addGussianSplat'
 import { WheelAdaptor } from 'three-story-controls'
 import { scenes } from './scenes'
 import gsap from 'gsap'
 import * as dat from 'dat.gui'
+import SofaModel from './SofaModel'
 
 const renderer = new THREE.WebGLRenderer({ antialias: false })
 const camera = new THREE.PerspectiveCamera(
@@ -23,111 +22,115 @@ const meshes = {}
 const lights = {}
 const scene = new THREE.Scene()
 const controls = new OrbitControls(camera, renderer.domElement)
-
-// Add these at the top with other declarations
+const clock = new THREE.Clock()
 const raycaster = new THREE.Raycaster()
 const mouse = new THREE.Vector2()
-const normalizedMouse = new THREE.Vector2()
 
 let currentSplatIndex = 0
-const loadedSplats = [] // Array to store all loaded splats
+const loadedSplats = [] 
 
-// let isLoadingSplat = false
-// const splatsURL = [
-//   'https://lumalabs.ai/capture/f3f711da-72aa-46c1-9697-15390ab877c9',
-//   'https://lumalabs.ai/capture/d913de89-45ac-40ba-a29e-19b847932b8f',
-//   'https://lumalabs.ai/capture/2b2112cd-9aa0-44f3-88b3-fde365066a3b',
-//   'https://lumalabs.ai/capture/8d7f5584-3765-487e-a16d-23b0656ce36c',
-//   'https://lumalabs.ai/capture/34dc4036-a526-43ed-9ff6-b6a05fa024ba',
-//   'https://lumalabs.ai/capture/e8c4d292-4765-4a0f-b729-4ca3ce29c5d2',
-//   'https://lumalabs.ai/capture/90449613-d135-49db-92c9-20e70c2b9672',
-//   'https://lumalabs.ai/capture/057109e3-79e1-411a-ab84-016cbd417d36',
-//   'https://lumalabs.ai/capture/4da7cf32-865a-4515-8cb9-9dfc574c90c2'
-// ]
 let sofaModel;
 const wheel = new WheelAdaptor({ type: 'discrete' })
 
-
-// Add near your other declarations
 let gui
 
 function setupDebugGUI() {
   gui = new dat.GUI()
   
-  // Create control objects
+  const currentScene = scenes[currentSplatIndex]
+  
+  // Create control objects and store GUI controllers
   const cameraControls = {
-    posX: camera.position.x,
-    posY: camera.position.y,
-    posZ: camera.position.z,
-    rotX: camera.rotation.x,
-    rotY: camera.rotation.y,
-    rotZ: camera.rotation.z
+    posX: currentScene.camera.position.x,
+    posY: currentScene.camera.position.y,
+    posZ: currentScene.camera.position.z,
+    rotX: currentScene.camera.rotation.x,
+    rotY: currentScene.camera.rotation.y,
+    rotZ: currentScene.camera.rotation.z
   }
 
-  const sofaControls = meshes.sofa ? {
-    posX: meshes.sofa.model.position.x,
-    posY: meshes.sofa.model.position.y,
-    posZ: meshes.sofa.model.position.z,
-    rotX: meshes.sofa.model.rotation.x,
-    rotY: meshes.sofa.model.rotation.y,
-    rotZ: meshes.sofa.model.rotation.z,
-    scale: meshes.sofa.model.scale.x
-  } : null
+  const cameraControllers = {
+    position: {},
+    rotation: {}
+  }
 
   // Camera controls
   const cameraPosition = gui.addFolder('Camera Position')
-  cameraPosition.add(cameraControls, 'posX', -10, 10).step(0.001).name('x').onChange(value => {
+  cameraControllers.position.x = cameraPosition.add(cameraControls, 'posX', -10, 10).step(0.001).name('x').onChange(value => {
     camera.position.x = value
   })
-  cameraPosition.add(cameraControls, 'posY', -10, 10).step(0.001).name('y').onChange(value => {
+  cameraControllers.position.y = cameraPosition.add(cameraControls, 'posY', -10, 10).step(0.001).name('y').onChange(value => {
     camera.position.y = value
   })
-  cameraPosition.add(cameraControls, 'posZ', -10, 10).step(0.001).name('z').onChange(value => {
+  cameraControllers.position.z = cameraPosition.add(cameraControls, 'posZ', -10, 10).step(0.001).name('z').onChange(value => {
     camera.position.z = value
   })
   cameraPosition.open()
 
   const cameraRotation = gui.addFolder('Camera Rotation')
-  cameraRotation.add(cameraControls, 'rotX', -Math.PI, Math.PI).step(0.001).name('x').onChange(value => {
+  cameraControllers.rotation.x = cameraRotation.add(cameraControls, 'rotX', -Math.PI, Math.PI).step(0.001).name('x').onChange(value => {
     camera.rotation.x = value
   })
-  cameraRotation.add(cameraControls, 'rotY', -Math.PI, Math.PI).step(0.001).name('y').onChange(value => {
+  cameraControllers.rotation.y = cameraRotation.add(cameraControls, 'rotY', -Math.PI, Math.PI).step(0.001).name('y').onChange(value => {
     camera.rotation.y = value
   })
-  cameraRotation.add(cameraControls, 'rotZ', -Math.PI, Math.PI).step(0.001).name('z').onChange(value => {
+  cameraControllers.rotation.z = cameraRotation.add(cameraControls, 'rotZ', -Math.PI, Math.PI).step(0.001).name('z').onChange(value => {
     camera.rotation.z = value
   })
   cameraRotation.open()
+
+  // Add update function to controls
+  controls.addEventListener('change', () => {
+    // Update position controllers
+    cameraControllers.position.x.setValue(camera.position.x)
+    cameraControllers.position.y.setValue(camera.position.y)
+    cameraControllers.position.z.setValue(camera.position.z)
+    
+    // Update rotation controllers
+    cameraControllers.rotation.x.setValue(camera.rotation.x)
+    cameraControllers.rotation.y.setValue(camera.rotation.y)
+    cameraControllers.rotation.z.setValue(camera.rotation.z)
+  })
+
+  const sofaControls = meshes.sofa ? {
+    posX: currentScene.sofa.position.x,
+    posY: currentScene.sofa.position.y,
+    posZ: currentScene.sofa.position.z,
+    rotX: currentScene.sofa.rotation.x,
+    rotY: currentScene.sofa.rotation.y,
+    rotZ: currentScene.sofa.rotation.z,
+    scale: currentScene.sofa.scale.x
+  } : null
 
   // Sofa controls
   if (meshes.sofa && sofaControls) {
     const sofaPosition = gui.addFolder('Sofa Position')
     sofaPosition.add(sofaControls, 'posX', -10, 10).step(0.001).name('x').onChange(value => {
-      meshes.sofa.model.position.x = value
+      meshes.sofa.position.x = value
     })
     sofaPosition.add(sofaControls, 'posY', -10, 10).step(0.001).name('y').onChange(value => {
-      meshes.sofa.model.position.y = value
+      meshes.sofa.position.y = value
     })
     sofaPosition.add(sofaControls, 'posZ', -10, 10).step(0.001).name('z').onChange(value => {
-      meshes.sofa.model.position.z = value
+      meshes.sofa.position.z = value
     })
     sofaPosition.open()
 
     const sofaRotation = gui.addFolder('Sofa Rotation')
     sofaRotation.add(sofaControls, 'rotX', -Math.PI, Math.PI).step(0.001).name('x').onChange(value => {
-      meshes.sofa.model.rotation.x = value
+      meshes.sofa.rotation.x = value
     })
     sofaRotation.add(sofaControls, 'rotY', -Math.PI, Math.PI).step(0.001).name('y').onChange(value => {
-      meshes.sofa.model.rotation.y = value
+      meshes.sofa.rotation.y = value
     })
     sofaRotation.add(sofaControls, 'rotZ', -Math.PI, Math.PI).step(0.001).name('z').onChange(value => {
-      meshes.sofa.model.rotation.z = value
+      meshes.sofa.rotation.z = value
     })
     sofaRotation.open()
 
     const sofaScale = gui.addFolder('Sofa Scale')
     sofaScale.add(sofaControls, 'scale', 0.1, 5).step(0.001).name('uniform scale').onChange(value => {
-      meshes.sofa.model.scale.set(value, value, value)
+      meshes.sofa.scale.set(value, value, value)
     })
     sofaScale.open()
   }
@@ -153,19 +156,19 @@ function setupDebugGUI() {
       if (meshes.sofa) {
         settings.sofa = {
           position: {
-            x: Number(meshes.sofa.model.position.x.toFixed(3)),
-            y: Number(meshes.sofa.model.position.y.toFixed(3)),
-            z: Number(meshes.sofa.model.position.z.toFixed(3))
+            x: Number(meshes.sofa.position.x.toFixed(3)),
+            y: Number(meshes.sofa.position.y.toFixed(3)),
+            z: Number(meshes.sofa.position.z.toFixed(3))
           },
           rotation: {
-            x: Number(meshes.sofa.model.rotation.x.toFixed(3)),
-            y: Number(meshes.sofa.model.rotation.y.toFixed(3)),
-            z: Number(meshes.sofa.model.rotation.z.toFixed(3))
+            x: Number(meshes.sofa.rotation.x.toFixed(3)),
+            y: Number(meshes.sofa.rotation.y.toFixed(3)),
+            z: Number(meshes.sofa.rotation.z.toFixed(3))
           },
           scale: {
-            x: Number(meshes.sofa.model.scale.x.toFixed(3)),
-            y: Number(meshes.sofa.model.scale.x.toFixed(3)),
-            z: Number(meshes.sofa.model.scale.x.toFixed(3))
+            x: Number(meshes.sofa.scale.x.toFixed(3)),
+            y: Number(meshes.sofa.scale.x.toFixed(3)),
+            z: Number(meshes.sofa.scale.x.toFixed(3))
           }
         }
       }
@@ -185,6 +188,11 @@ function switchScene(direction) {
     loadedSplats[currentSplatIndex].visible = false
   }
 
+  // Reset sofa to default state
+  if (sofaModel) {
+    sofaModel.setVisibility('default')
+  }
+
   // Update index
   if (direction > 0) {
     currentSplatIndex = (currentSplatIndex + 1) % scenes.length
@@ -194,7 +202,6 @@ function switchScene(direction) {
 
   const newScene = scenes[currentSplatIndex]
   const splat = loadedSplats[currentSplatIndex]
-
 
   switchToScene(newScene)
   // Show new splat
@@ -207,9 +214,6 @@ function switchScene(direction) {
       scene.backgroundBlurriness = 0.5;
     })
   }
-  console.log(meshes.sofa)
-  //change sofa material
-
 }
 
 function switchToScene(newScene) {
@@ -276,66 +280,62 @@ function scrollHandler() {
 }
 
 
-
 async function loadModels() {
-
-  // const sofaModel = new ModelWithPoints({
-  //   url: '/sofa.glb',
-  //   scene: scene,
-  //   meshes: meshes,
-  //   position: new THREE.Vector3(0, 0, 0),
-  //   scale: new THREE.Vector3(2, 2, 2)
-  // })
-  // await sofaModel.load()
-  // meshes.sofa = sofaModel  // Store reference to the loaded model
-
-   sofaModel = new Model({
+  const initialScene = scenes[0]
+  sofaModel = new SofaModel({
     url: '/sofa.glb',
-    name: 'sofa',
     scene: scene,
     meshes: meshes,
-    position: new THREE.Vector3(0, 0, 0),
-    scale: new THREE.Vector3(2, 2, 2)
-  })
-  sofaModel.init()
- 
-  console.log(sofaModel)
-  setupDebugGUI()
-  switchToScene(scenes[0])
-  // // Initially show the regular model
-  // sofaModel.setPointsVisible(false)
-  // sofaModel.setModelVisible(true)
-}
-
-// Add click event listener
-function setupClickHandler() {
-  window.addEventListener('click', (event) => {
-    // Calculate mouse position in normalized device coordinates
-    mouse.x = (event.clientX / window.innerWidth) * 2 - 1
-    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1
-
-    // Update the picking ray with the camera and mouse position
-    raycaster.setFromCamera(mouse, camera)
-
-    if (meshes.sofa) {
-      // Check for intersections with both model and points
-      const intersectsModel = raycaster.intersectObject(meshes.sofa, true)
-      // const intersectsPoints = raycaster.intersectObject(meshes.sofa.pointsGroup, true)
-
-      // If we clicked either representation, toggle
-      if (intersectsModel.length > 0 ) {
-        // meshes.sofa.toggleRepresentation()
-        // sofaModel.updateMaterial(new THREE.MeshPhysicalMaterial({
-        //   color: '#ff6b6b',
-        //   metalness: 1,
-        //   roughness: 0.2,
-        //   clearcoat: 1.0,
-        //   clearcoatRoughness: 0.1,
-        // }))
-      }
+    position: new THREE.Vector3(
+      initialScene.sofa.position.x,
+      initialScene.sofa.position.y,
+      initialScene.sofa.position.z
+    ),
+    scale: new THREE.Vector3(
+      initialScene.sofa.scale.x,
+      initialScene.sofa.scale.y,
+      initialScene.sofa.scale.z
+    ),
+    callback: (loadedMesh) => {
+      console.log('Sofa loaded:', loadedMesh)
+      setupDebugGUI()
+      switchToScene(scenes[0])
     }
   })
+  await sofaModel.init()
 }
+
+function setupClickHandler() {
+    let isToggled = false;  // Track toggle state
+
+    window.addEventListener('click', (event) => {
+        mouse.x = (event.clientX / window.innerWidth) * 2 - 1
+        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1
+
+        raycaster.setFromCamera(mouse, camera)
+
+        // Check for intersections with the sofa model group
+        const intersectsModel = raycaster.intersectObjects(scene.children)
+        for(let i = 0; i < intersectsModel.length; i++) {
+            const intersect = intersectsModel[i]
+        
+            const expectedType = isToggled ? 
+                (scenes[currentSplatIndex].hoverModel || 'default') : 
+                'default';
+            const expectedName = `sofa-${expectedType}`;
+
+            if(intersect.object.name === expectedName && intersect.object.visible) {
+                isToggled = !isToggled;
+                const currentScene = scenes[currentSplatIndex]
+                const modelType = isToggled ? (currentScene.hoverModel || 'default') : 'default'
+
+                sofaModel.setVisibility(modelType)
+                break;
+            }
+        }
+    })
+}
+
 
 
 async function preloadSplats() {
@@ -371,8 +371,8 @@ function init() {
 
   camera.position.set(0, 0, 5)
 
-
-  setupClickHandler()
+  setupClickHandler()  // Uncomment this
+  // setupHoverHandler()  // Comment this out
   loadModels()
   resize()
   animate()
@@ -380,7 +380,6 @@ function init() {
 
   // Preload all splats before starting
   preloadSplats()
-
 }
 
 function resize() {
@@ -392,19 +391,15 @@ function resize() {
 }
 
 function animate() {
+  const elapsedTime = clock.getElapsedTime()  // Get time elapsed since last frame
+
   requestAnimationFrame(animate)
   controls.update()
-
-  // meshes.default.rotation.x += 0.01
-  // meshes.standard.rotation.y += 0.01
-  // meshes.standard.rotation.z -= 0.01
-
-  // // Call both animations independently
-  // if (meshes.sofa) {
-  //  // meshes.sofa.animatePoints(performance.now() * 11)
-  //    meshes.sofa.mouseWarp()
-  //    meshes.sofa.animateMesh(performance.now() * 1)
-  // }
-
+  
+  // Update sofa animations with delta time
+  if (sofaModel) {
+    sofaModel.update(elapsedTime)
+  }
+  
   renderer.render(scene, camera)
 }
