@@ -310,7 +310,7 @@ function switchToScene(newScene) {
       x: newScene.sofa.position.x,
       y: newScene.sofa.position.y,
       z: newScene.sofa.position.z,
-      duration: 1.5,
+      duration: 0,
       ease: "power2.inOut"
     })
 
@@ -318,7 +318,7 @@ function switchToScene(newScene) {
       x: newScene.sofa.scale.x,
       y: newScene.sofa.scale.y,
       z: newScene.sofa.scale.z,
-      duration: 1.5,
+      duration: 0,
       ease: "power2.inOut"
     })
 
@@ -326,7 +326,7 @@ function switchToScene(newScene) {
       x: newScene.sofa.rotation.x,
       y: newScene.sofa.rotation.y,
       z: newScene.sofa.rotation.z,
-      duration: 1.5,
+      duration: 0,
       ease: "power2.inOut"
     })
 
@@ -365,7 +365,7 @@ async function loadModels() {
     ),
     callback: (loadedMesh) => {
       console.log('Sofa loaded:', loadedMesh)
-      setupDebugGUI()
+      // setupDebugGUI()
       switchToScene(scenes[0])
       console.log(sofaModel.models)
       // Add all sofa models to clickables array
@@ -396,6 +396,12 @@ function setupClickHandler() {
       const expectedName = `sofa-${expectedType}`;
 
       if (intersect.object.name === expectedName && intersect.object.visible) {
+        // Remove instruction text when couch is clicked
+        const instructionText = document.getElementById('instruction-text')
+        if (instructionText) {
+          instructionText.remove()
+        }
+
         isToggled = !isToggled;
         const currentScene = scenes[currentSplatIndex]
         const modelType = isToggled ? (currentScene.hoverModel || 'default') : 'default'
@@ -462,28 +468,46 @@ async function preloadSplats() {
 }
 
 function init() {
-  renderer.setSize(window.innerWidth, window.innerHeight)
-  document.body.appendChild(renderer.domElement)
+  // Add click handler for start button
+  document.getElementById('startButton').addEventListener('click', async () => {
+    // Hide home, show loading
+    document.getElementById('home').style.display = 'none'
+    document.getElementById('loading').style.display = 'flex'
+    
+    // Add instruction text overlay
+    const instructionText = document.createElement('div')
+    instructionText.id = 'instruction-text'
+    instructionText.textContent = 'Click the couch'
+    document.body.appendChild(instructionText)
+    
+    // Initialize scene
+    renderer.setSize(window.innerWidth, window.innerHeight)
+    document.body.appendChild(renderer.domElement)
 
-  meshes.default = addBoilerPlateMeshes()
-  meshes.standard = addStandardMesh()
-  lights.default = addLight()
+    meshes.default = addBoilerPlateMeshes()
+    meshes.standard = addStandardMesh()
+    lights.default = addLight()
 
-  scene.add(lights.default)
-  // scene.add(meshes.default)
+    scene.add(lights.default)
+    camera.position.set(0, 0, 5)
 
-  camera.position.set(0, 0, 5)
+    setupPostProcessing()
+    setupClickHandler()
+    
+    // Wait for everything to load
+    await Promise.all([
+      loadModels(),
+      preloadSplats()
+    ])
 
-  setupPostProcessing()
-  setupClickHandler()  // Uncomment this
-  // setupHoverHandler()  // Comment this out
-  loadModels()
-  resize()
-  animate()
-  scrollHandler()
+    // Hide loading, show app
+    document.getElementById('loading').style.display = 'none'
+    document.getElementById('app').style.display = 'block'
 
-  // Preload all splats before starting
-  preloadSplats()
+    resize()
+    animate()
+    scrollHandler()
+  })
 }
 
 function resize() {

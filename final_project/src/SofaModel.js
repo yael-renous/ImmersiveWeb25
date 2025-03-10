@@ -204,9 +204,16 @@ export default class SofaModel {
                     if (child instanceof THREE.Points) {
                         const positions = child.geometry.attributes.position.array;
                         for (let i = 0; i < positions.length; i += 3) {
+                            const originalX = positions[i];
                             const originalY = positions[i + 1];
+                            
+                            // Add wave motion to X coordinate
+                            positions[i] = originalX + 
+                                Math.cos(time * 2 + positions[i + 1] * 0.05) * 0.0002;
+                            
+                            // Add wave motion to Y coordinate
                             positions[i + 1] = originalY + 
-                                Math.sin(time * 2 + positions[i] * 0.0005) * 0.0002;
+                                Math.sin(time * 2 + positions[i] * 0.05) * 0.0002;
                         }
                         child.geometry.attributes.position.needsUpdate = true;
                     }

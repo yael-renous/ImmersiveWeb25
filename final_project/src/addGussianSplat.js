@@ -9,7 +9,7 @@ export const addGussianSplat = async (url) => {
             // particleRevealEnabled: true,
             loadingAnimationEnabled: false,
             // Optional: Add transition settings
-            fadeInDuration: 1.0, // seconds
+            fadeInDuration: 0, // seconds
         })
 
         // Wait for initialization
