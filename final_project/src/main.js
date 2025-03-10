@@ -10,6 +10,9 @@ import { scenes } from './scenes'
 import gsap from 'gsap'
 import * as dat from 'dat.gui'
 import SofaModel from './SofaModel'
+import { postprocessing } from './postprocessing'
+
+
 
 const renderer = new THREE.WebGLRenderer({ antialias: false })
 const camera = new THREE.PerspectiveCamera(
@@ -27,18 +30,21 @@ const raycaster = new THREE.Raycaster()
 const mouse = new THREE.Vector2()
 
 let currentSplatIndex = 0
-const loadedSplats = [] 
+const loadedSplats = []
 
 let sofaModel;
+let clickables = []
 const wheel = new WheelAdaptor({ type: 'discrete' })
 
 let gui
+let composer
+let glitchPass
 
 function setupDebugGUI() {
   gui = new dat.GUI()
-  
+
   const currentScene = scenes[currentSplatIndex]
-  
+
   // Create control objects and store GUI controllers
   const cameraControls = {
     posX: currentScene.camera.position.x,
@@ -85,7 +91,7 @@ function setupDebugGUI() {
     cameraControllers.position.x.setValue(camera.position.x)
     cameraControllers.position.y.setValue(camera.position.y)
     cameraControllers.position.z.setValue(camera.position.z)
-    
+
     // Update rotation controllers
     cameraControllers.rotation.x.setValue(camera.rotation.x)
     cameraControllers.rotation.y.setValue(camera.rotation.y)
@@ -180,40 +186,101 @@ function setupDebugGUI() {
 
 init()
 
+function setupPostProcessing() {
+  const postProcess = postprocessing(scene, camera, renderer)
+  composer = postProcess.composer
+  composer.bloom = postProcess.bloom
+  composer.glitch = postProcess.glitch
+  // Add missing post-processing effects
+  composer.pixel = postProcess.pixel
+  composer.afterimage = postProcess.afterimage
+  composer.dof = postProcess.dof
+}
+
+function setPostProcessing(effects = {}) {
+  // First disable all effects and reset to defaults
+  composer.glitch.enabled = false
+  composer.pixel.enabled = false
+  composer.afterimage.enabled = false
+  composer.dof.enabled = false
+  composer.bloom.strength = 0
+
+  // Apply provided effects
+  Object.entries(effects).forEach(([effect, settings]) => {
+    switch (effect) {
+      case 'bloom':
+        composer.bloom.strength = settings.strength || 0.1
+        break;
+      case 'glitch':
+        composer.glitch.enabled = settings.enabled || false
+        break;
+      case 'pixel':
+        composer.pixel.enabled = settings.enabled || false
+        break;
+      case 'afterimage':
+        composer.afterimage.enabled = settings.enabled || false
+        break;
+      case 'dof':
+        composer.dof.enabled = settings.enabled || false
+        if (settings.enabled) {
+          composer.dof.bokehScale = settings.bokehScale || 2.0
+          composer.dof.focusDistance = settings.focusDistance || 0.1
+          composer.dof.focalLength = settings.focalLength || 0.05
+        }
+        break;
+    }
+  })
+}
 
 function switchScene(direction) {
   console.log('Switching scene', direction)
-  // Hide current splat
-  if (loadedSplats[currentSplatIndex]) {
-    loadedSplats[currentSplatIndex].visible = false
-  }
+  
+  const tl = gsap.timeline()
+  
+  // Reset all post-processing effects to default state
+  setPostProcessing()
+  
+  // Increase bloom strength, make the transition, then reduce it back
+  tl.to(composer.bloom, {
+    strength: 80,
+    duration: 0.2,
+    onComplete: () => {
+      // Hide current splat
+      if (loadedSplats[currentSplatIndex]) {
+        loadedSplats[currentSplatIndex].visible = false
+      }
 
-  // Reset sofa to default state
-  if (sofaModel) {
-    sofaModel.setVisibility('default')
-  }
+      // Reset sofa to default state
+      if (sofaModel) {
+        sofaModel.setVisibility('default')
+      }
 
-  // Update index
-  if (direction > 0) {
-    currentSplatIndex = (currentSplatIndex + 1) % scenes.length
-  } else {
-    currentSplatIndex = (currentSplatIndex - 1 + scenes.length) % scenes.length
-  }
+      // Update index
+      if (direction > 0) {
+        currentSplatIndex = (currentSplatIndex + 1) % scenes.length
+      } else {
+        currentSplatIndex = (currentSplatIndex - 1 + scenes.length) % scenes.length
+      }
 
-  const newScene = scenes[currentSplatIndex]
-  const splat = loadedSplats[currentSplatIndex]
+      const newScene = scenes[currentSplatIndex]
+      const splat = loadedSplats[currentSplatIndex]
 
-  switchToScene(newScene)
-  // Show new splat
-  if (splat) {
-    splat.visible = true
-    splat.captureCubemap(renderer).then((capturedTexture) => {
-      console.log('Captured texture', capturedTexture)
-      scene.environment = capturedTexture;
-      scene.background = capturedTexture;
-      scene.backgroundBlurriness = 0.5;
+      switchToScene(newScene)
+      // Show new splat
+      if (splat) {
+        splat.visible = true
+        splat.captureCubemap(renderer).then((capturedTexture) => {
+          scene.environment = capturedTexture
+          scene.background = capturedTexture
+          scene.backgroundBlurriness = 0.5
+        })
+      }
+    }
+  })
+    .to(composer.bloom, {
+      strength: 0.1,
+      duration: 0.5
     })
-  }
 }
 
 function switchToScene(newScene) {
@@ -300,40 +367,76 @@ async function loadModels() {
       console.log('Sofa loaded:', loadedMesh)
       setupDebugGUI()
       switchToScene(scenes[0])
+      console.log(sofaModel.models)
+      // Add all sofa models to clickables array
+      Object.values(sofaModel.models).forEach(model => {
+        if (model) clickables.push(model)
+      })
     }
   })
   await sofaModel.init()
 }
 
 function setupClickHandler() {
-    let isToggled = false;  // Track toggle state
+  let isToggled = false;
 
-    window.addEventListener('click', (event) => {
-        mouse.x = (event.clientX / window.innerWidth) * 2 - 1
-        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1
+  window.addEventListener('click', (event) => {
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1
 
-        raycaster.setFromCamera(mouse, camera)
+    raycaster.setFromCamera(mouse, camera)
 
-        // Check for intersections with the sofa model group
-        const intersectsModel = raycaster.intersectObjects(scene.children)
-        for(let i = 0; i < intersectsModel.length; i++) {
-            const intersect = intersectsModel[i]
-        
-            const expectedType = isToggled ? 
-                (scenes[currentSplatIndex].hoverModel || 'default') : 
-                'default';
-            const expectedName = `sofa-${expectedType}`;
+    const intersectsModel = raycaster.intersectObjects(clickables)
+    for (let i = 0; i < intersectsModel.length; i++) {
+      const intersect = intersectsModel[i]
 
-            if(intersect.object.name === expectedName && intersect.object.visible) {
-                isToggled = !isToggled;
-                const currentScene = scenes[currentSplatIndex]
-                const modelType = isToggled ? (currentScene.hoverModel || 'default') : 'default'
+      const expectedType = isToggled ?
+        (scenes[currentSplatIndex].hoverModel || 'default') :
+        'default';
+      const expectedName = `sofa-${expectedType}`;
 
-                sofaModel.setVisibility(modelType)
-                break;
-            }
+      if (intersect.object.name === expectedName && intersect.object.visible) {
+        isToggled = !isToggled;
+        const currentScene = scenes[currentSplatIndex]
+        const modelType = isToggled ? (currentScene.hoverModel || 'default') : 'default'
+
+        sofaModel.setVisibility(modelType)
+
+        // Use the helper function with different effect configurations
+        switch (modelType) {
+          case 'glitch':
+            setPostProcessing({
+              glitch: { enabled: true },
+            })
+            break;
+          case 'neon':
+            setPostProcessing({
+              afterimage: { enabled: true },
+            })
+            break;
+          case 'points':
+            setPostProcessing({
+              dof: {
+                enabled: true,
+                bokehScale: 2.0,
+                focusDistance: 0.5,
+                focalLength: 0.05
+              }
+            })
+            break;
+          case 'wireframe':
+            setPostProcessing({
+              pixel: { enabled: true },
+            })
+            break;
+          default:
+            setPostProcessing() // Reset to defaults
+            break;
         }
-    })
+        break;
+      }
+    }
+  })
 }
 
 
@@ -371,6 +474,7 @@ function init() {
 
   camera.position.set(0, 0, 5)
 
+  setupPostProcessing()
   setupClickHandler()  // Uncomment this
   // setupHoverHandler()  // Comment this out
   loadModels()
@@ -387,6 +491,7 @@ function resize() {
     renderer.setSize(window.innerWidth, window.innerHeight)
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
+    composer.setSize(window.innerWidth, window.innerHeight)
   })
 }
 
@@ -395,11 +500,11 @@ function animate() {
 
   requestAnimationFrame(animate)
   controls.update()
-  
+
   // Update sofa animations with delta time
   if (sofaModel) {
     sofaModel.update(elapsedTime)
   }
-  
-  renderer.render(scene, camera)
+
+  composer.render()
 }

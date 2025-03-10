@@ -22,7 +22,6 @@ export default class SofaModel {
         this.models = {
             default: null,
             points: null,
-            wave: null,
             neon: null,
             glitch: null,
             wireframe: null
@@ -98,8 +97,8 @@ export default class SofaModel {
                 const points = new THREE.Points(
                     pointsGeometry,
                     new THREE.PointsMaterial({
-                        color: 0xffffff,
-                        size: 0.02,
+                        color: 0xff6b6b,
+                        size: 0.05,
                         sizeAttenuation: true
                     })
                 )
@@ -196,11 +195,23 @@ export default class SofaModel {
         }
     }
 
-
-
     update(time) {
         // Handle any necessary animations based on current model
         switch (this.currentModel) {
+            case 'points':
+                // Animate points in a wave pattern
+                this.models.points.traverse((child) => {
+                    if (child instanceof THREE.Points) {
+                        const positions = child.geometry.attributes.position.array;
+                        for (let i = 0; i < positions.length; i += 3) {
+                            const originalY = positions[i + 1];
+                            positions[i + 1] = originalY + 
+                                Math.sin(time * 2 + positions[i] * 0.0005) * 0.0002;
+                        }
+                        child.geometry.attributes.position.needsUpdate = true;
+                    }
+                });
+                break;
             case 'neon':
                 // Pulse the emissive intensity
                 this.models.neon.traverse((child) => {
