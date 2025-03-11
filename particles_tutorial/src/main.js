@@ -116,12 +116,12 @@ function animate() {
 
   // meshes.points.rotation.y += 0.01
 
-  // for(let i = 0; i < 5000; i++){
-  //   const index = i * 3
-  //   const x = meshes.points.geometry.attributes.position.array[index]
-  //   meshes.points.geometry.attributes.position.array[index +1] =Math.sin(clock.getElapsedTime()+x)
-  // }
-  // meshes.points.geometry.attributes.position.needsUpdate = true
+  for(let i = 0; i < 5000; i++){
+    const index = i * 3
+    const x = meshes.points.geometry.attributes.position.array[index]
+    meshes.points.geometry.attributes.position.array[index +1] =Math.sin(clock.getElapsedTime()+x)
+  }
+  meshes.points.geometry.attributes.position.needsUpdate = true
 
   meshes.default.rotation.x += 0.01
   meshes.standard.rotation.y += 0.01
